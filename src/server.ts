@@ -21,7 +21,15 @@ let prisma: any = null;
 
 const getPrismaClient = () => {
   if (!prisma) {
-    prisma = new PrismaClient();
+    prisma = new PrismaClient({
+      __internal: {
+        configOverride: (config: any) => ({
+          ...config,
+          activeProvider: 'mysql',
+        }),
+      },
+      log: [{ level: 'error', emit: 'stdout' }],
+    } as any);
   }
   return prisma;
 };
