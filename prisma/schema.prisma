@@ -1,0 +1,65 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bookings  Booking[]
+}
+
+enum BookingStatus {
+  AVAILABLE
+  PENDING
+  BOOKED
+  CANCELED
+}
+
+model Hotel {
+  id    String @id @default(uuid())
+  name  String
+
+  rooms Room[]
+}
+
+model Room {
+  id            String   @id @default(uuid())
+  name          String
+  pricePerNight Decimal  @db.Decimal(10,2)
+
+  hotelId       String
+  hotel         Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+
+  bookings      Booking[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Booking {
+  id            String        @id @default(uuid())
+
+  userId        String
+  roomId        String
+
+  bookingStatus BookingStatus @default(PENDING)
+
+  startDate     DateTime
+  endDate       DateTime
+
+  createdAt     DateTime      @default(now())
+
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room          Room          @relation(fields: [roomId], references: [id], onDelete: Cascade)
+}
