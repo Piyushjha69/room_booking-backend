@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { AuthService } from '../services/auth.services';
-import { sendError, sendSuccess } from '../utils/apiResponse';
+import { sendSuccess } from '../utils/apiResponse';
 import { ValidationError } from '../errors/AppError';
 
 export const registerController = async (
@@ -19,6 +19,7 @@ export const registerController = async (
         id: result.user.id,
         name: result.user.name,
         email: result.user.email,
+        createdAt: result.user.createdAt,
       },
     });
   } catch (error) {
@@ -42,6 +43,7 @@ export const loginController = async (
         id: result.user.id,
         name: result.user.name,
         email: result.user.email,
+        createdAt: result.user.createdAt,
       },
     });
   } catch (error) {
