@@ -8,7 +8,10 @@
     "build": "tsc --project tsconfig.json && npm run copy:generated",
     "copy:generated": "node -e \"require('fs').cpSync('src/generated', 'dist/generated', {recursive: true, force: true})\"",
     "start": "node --enable-source-maps ./dist/server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prisma:seed": "prisma db seed",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:generate": "prisma generate"
   },
   "author": "",
   "license": "ISC",
@@ -34,7 +37,11 @@
     "prisma": "^6.19.2",
     "ts-jest": "^29.4.6",
     "ts-node-dev": "^2.0.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "tsx": "^4.7.0"
   },
-  "keywords": []
+  "keywords": [],
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  }
 }

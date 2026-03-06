@@ -27,8 +27,8 @@ export const authMiddleware = (
 
     next();
   } catch (error) {
-    throw new AuthenticationError(
-      error instanceof Error ? error.message : 'Authentication failed'
-    );
+   next(new AuthenticationError(
+     error instanceof Error ? error.message : 'Authentication failed'
+   ));
   }
 };

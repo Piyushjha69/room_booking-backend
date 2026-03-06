@@ -71,3 +71,18 @@ export const refreshTokenController = async (
     next(error);
   }
 };
+
+export const logoutController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const authService = new AuthService(req.db!);
+    await authService.logout(req.user!.id);
+
+    sendSuccess(res, 200, 'Logout successful', {});
+  } catch (error) {
+    next(error);
+  }
+};

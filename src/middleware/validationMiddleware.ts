@@ -13,9 +13,10 @@ export const validateRequest = (schema: ZodSchema) => {
         const messages = error.errors
           .map((e: any) => e.message)
           .join(', ');
-        throw new ValidationError(messages);
+        next(new ValidationError(messages));
+        return;
       }
-      throw new ValidationError(error.message || 'Validation failed');
+      next(new ValidationError(error.message || 'Validation failed'));
     }
   };
 };

@@ -3,9 +3,11 @@ import {
   registerController,
   loginController,
   refreshTokenController,
+  logoutController,
 } from '../controller/auth.controller';
 import { validateRequest } from '../middleware/validationMiddleware';
 import { RegisterSchema, LoginSchema } from '../schemas/auth.schema';
+import { authMiddleware } from '../middleware/authMiddleware';
 
 export const authRouter = Router();
 
@@ -20,3 +22,4 @@ authRouter.post(
   loginController
 );
 authRouter.post('/api/auth/refresh', refreshTokenController);
+authRouter.post('/api/auth/logout', authMiddleware, logoutController);

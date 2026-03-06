@@ -5,6 +5,8 @@ import { PrismaClient } from './generated/prisma';
 import { validateEnvironment } from './utils/env.utils';
 import { errorHandler } from './middleware/errorHandler';
 import { authRouter } from './routes/auth.routes';
+import { roomRouter } from './routes/room.routes';
+import { bookingRouter } from './routes/booking.routes';
 
 dotenv.config();
 
@@ -40,6 +42,8 @@ app.get('/', (req: Request, res: Response) => {
 });
 
 app.use(authRouter);
+app.use(roomRouter);
+app.use(bookingRouter);
 
 app.use((req, res) => {
   res.status(404).json({
