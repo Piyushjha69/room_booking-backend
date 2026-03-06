@@ -1,10 +1,10 @@
 import jwt from 'jsonwebtoken';
 import { getEnv } from './env.utils';
 
-const ACCESS_TOKEN_SECRET = getEnv('ACCESS_TOKEN_SECRET');
-const REFRESH_TOKEN_SECRET = getEnv('REFRESH_TOKEN_SECRET');
-const ACCESS_TOKEN_EXPIRY = process.env.ACCESS_TOKEN_EXPIRY || '15m';
-const REFRESH_TOKEN_EXPIRY = process.env.REFRESH_TOKEN_EXPIRY || '7d';
+const getAccessTokenSecret = () => getEnv('ACCESS_TOKEN_SECRET');
+const getRefreshTokenSecret = () => getEnv('REFRESH_TOKEN_SECRET');
+const getAccessTokenExpiry = () => process.env.ACCESS_TOKEN_EXPIRY || '15m';
+const getRefreshTokenExpiry = () => process.env.REFRESH_TOKEN_EXPIRY || '7d';
 
 export interface TokenPayload {
   userId: string;
@@ -19,17 +19,17 @@ export interface JwtTokens {
 export const generateTokens = (payload: TokenPayload): JwtTokens => {
   const accessToken = jwt.sign(
     payload,
-    ACCESS_TOKEN_SECRET as string,
+    getAccessTokenSecret(),
     {
-      expiresIn: ACCESS_TOKEN_EXPIRY as string,
+      expiresIn: getAccessTokenExpiry(),
     } as any
   );
 
   const refreshToken = jwt.sign(
     payload,
-    REFRESH_TOKEN_SECRET as string,
+    getRefreshTokenSecret(),
     {
-      expiresIn: REFRESH_TOKEN_EXPIRY as string,
+      expiresIn: getRefreshTokenExpiry(),
     } as any
   );
 
@@ -41,7 +41,7 @@ export const generateTokens = (payload: TokenPayload): JwtTokens => {
 
 export const verifyAccessToken = (token: string): TokenPayload | null => {
   try {
-    const decoded = jwt.verify(token, ACCESS_TOKEN_SECRET) as TokenPayload;
+    const decoded = jwt.verify(token, getAccessTokenSecret()) as TokenPayload;
     return decoded;
   } catch (err) {
     return null;
@@ -50,7 +50,7 @@ export const verifyAccessToken = (token: string): TokenPayload | null => {
 
 export const verifyRefreshToken = (token: string): TokenPayload | null => {
   try {
-    const decoded = jwt.verify(token, REFRESH_TOKEN_SECRET) as TokenPayload;
+    const decoded = jwt.verify(token, getRefreshTokenSecret()) as TokenPayload;
     return decoded;
   } catch (error) {
     return null;

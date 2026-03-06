@@ -17,14 +17,21 @@ try {
 
 const app: Express = express();
 const PORT = parseInt(process.env.PORT || '5000', 10);
-const prisma = new PrismaClient();
+let prisma: any = null;
+
+const getPrismaClient = () => {
+  if (!prisma) {
+    prisma = new PrismaClient();
+  }
+  return prisma;
+};
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors());
 
 app.use((req: Request, res: Response, next: NextFunction) => {
-  req.db = prisma;
+  req.db = getPrismaClient();
   next();
 });
 
@@ -58,13 +65,13 @@ const start = async () => {
 
 process.on('SIGINT', async () => {
   console.log('SIGINT received, shutting down gracefully...');
-  await prisma.$disconnect();
+  if (prisma) await prisma.$disconnect();
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
   console.log('SIGTERM received, shutting down gracefully...');
-  await prisma.$disconnect();
+  if (prisma) await prisma.$disconnect();
   process.exit(0);
 });
 
