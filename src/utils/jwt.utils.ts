@@ -9,6 +9,7 @@ const getRefreshTokenExpiry = () => process.env.REFRESH_TOKEN_EXPIRY || '7d';
 export interface TokenPayload {
   userId: string;
   email: string;
+  role: string;
 }
 
 export interface JwtTokens {

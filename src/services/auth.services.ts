@@ -29,6 +29,7 @@ export class AuthService {
     const tokens = generateTokens({
       userId: user.id,
       email: user.email,
+      role: user.role,
     });
 
     const { password, ...userWithoutPassword } = user;
@@ -56,6 +57,7 @@ export class AuthService {
     const tokens = generateTokens({
       userId: user.id,
       email: user.email,
+      role: user.role,
     });
 
     const { password, ...userWithoutPassword } = user;
@@ -83,6 +85,7 @@ export class AuthService {
     const tokens = generateTokens({
       userId: user.id,
       email: user.email,
+      role: user.role,
     });
 
     return tokens;

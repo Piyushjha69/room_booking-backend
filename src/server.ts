@@ -7,6 +7,7 @@ import { errorHandler } from './middleware/errorHandler';
 import { authRouter } from './routes/auth.routes';
 import { roomRouter } from './routes/room.routes';
 import { bookingRouter } from './routes/booking.routes';
+import { hotelRouter } from './routes/hotel.routes';
 
 dotenv.config();
 
@@ -42,6 +43,7 @@ app.get('/', (req: Request, res: Response) => {
 });
 
 app.use(authRouter);
+app.use(hotelRouter);
 app.use(roomRouter);
 app.use(bookingRouter);
 

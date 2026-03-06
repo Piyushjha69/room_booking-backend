@@ -19,6 +19,7 @@ export const registerController = async (
         id: result.user.id,
         name: result.user.name,
         email: result.user.email,
+        role: result.user.role,
         createdAt: result.user.createdAt,
       },
     });
@@ -43,6 +44,7 @@ export const loginController = async (
         id: result.user.id,
         name: result.user.name,
         email: result.user.email,
+        role: result.user.role,
         createdAt: result.user.createdAt,
       },
     });
