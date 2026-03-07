@@ -3,6 +3,7 @@ import {
   getAdminStatsController,
   getAllUsersController,
   updateUserRoleController,
+  getAllBookingsController,
 } from '../controller/admin.controller';
 import { authMiddleware } from '../middleware/authMiddleware';
 import { adminMiddleware } from '../middleware/adminMiddleware';
@@ -14,4 +15,5 @@ adminRouter.use(adminMiddleware);
 
 adminRouter.get('/api/admin/stats', getAdminStatsController);
 adminRouter.get('/api/admin/users', getAllUsersController);
+adminRouter.get('/api/admin/bookings', getAllBookingsController);
 adminRouter.patch('/api/admin/users/:id/role', updateUserRoleController);

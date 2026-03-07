@@ -29,6 +29,79 @@ export const getAdminStatsController = async (
   }
 };
 
+export const getAllBookingsController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const prisma = req.db! as PrismaClient;
+    const { status, page = '1', limit = '20' } = req.query;
+
+    const pageNum = parseInt(page as string, 10);
+    const limitNum = parseInt(limit as string, 10);
+    const skip = (pageNum - 1) * limitNum;
+
+    const where: any = {};
+    if (status && status !== 'all') {
+      where.bookingStatus = status.toString().toUpperCase();
+    }
+
+    const [bookings, total] = await Promise.all([
+      prisma.booking.findMany({
+        where,
+        skip,
+        take: limitNum,
+        select: {
+          id: true,
+          userId: true,
+          roomId: true,
+          startDate: true,
+          endDate: true,
+          bookingStatus: true,
+          createdAt: true,
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          room: {
+            select: {
+              id: true,
+              name: true,
+              pricePerNight: true,
+              hotel: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      }),
+      prisma.booking.count({ where }),
+    ]);
+
+    sendSuccess(res, 200, 'Bookings retrieved successfully', {
+      bookings,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getAllUsersController = async (
   req: Request,
   res: Response,

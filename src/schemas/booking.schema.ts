@@ -2,11 +2,6 @@ import { z } from 'zod';
 
 const isoDateString = z.string().refine((val) => {
   const date = new Date(val);
-  return !isNaN(date.getTime()) && date.toISOString() === val;
-}, 'Invalid ISO date format');
-
-const flexibleDateString = z.string().refine((val) => {
-  const date = new Date(val);
   return !isNaN(date.getTime());
 }, 'Invalid date format');
 
@@ -16,6 +11,18 @@ export const CreateBookingSchema = z.object({
   startDate: isoDateString,
   endDate: isoDateString,
 }).refine(
+  (data) => {
+    const start = new Date(data.startDate);
+    const end = new Date(data.endDate);
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    return start >= now;
+  },
+  {
+    message: 'Start date cannot be in the past',
+    path: ['startDate'],
+  }
+).refine(
   (data) => {
     const start = new Date(data.startDate);
     const end = new Date(data.endDate);
@@ -32,6 +39,18 @@ export const CreateBookingByIdSchema = z.object({
   startDate: isoDateString,
   endDate: isoDateString,
 }).refine(
+  (data) => {
+    const start = new Date(data.startDate);
+    const end = new Date(data.endDate);
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    return start >= now;
+  },
+  {
+    message: 'Start date cannot be in the past',
+    path: ['startDate'],
+  }
+).refine(
   (data) => {
     const start = new Date(data.startDate);
     const end = new Date(data.endDate);

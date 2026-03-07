@@ -84,47 +84,74 @@ export class RoomService {
       },
     });
 
-    let bookedRoomIds: string[] = [];
-    
-    if (startDate && endDate) {
-      const bookings = await this.prisma.booking.findMany({
-        where: {
-          AND: [
-            { startDate: { lt: endDate } },
-            { endDate: { gt: startDate } },
-            { bookingStatus: { not: 'CANCELED' } },
-          ],
-        },
-        select: {
-          roomId: true,
-        },
-      });
-      bookedRoomIds = bookings.map((b) => b.roomId);
-    }
-
-    const roomMap = new Map<string, RoomTypeAvailability>();
+    const roomTypeMap = new Map<string, { ids: string[]; pricePerNight: number; hotelId: string; hotelName: string }>();
 
     for (const room of rooms) {
       const roomType = room.name.replace(/\s+\d+$/, '').trim();
-      const isBooked = bookedRoomIds.includes(room.id);
-
-      if (!roomMap.has(roomType)) {
-        roomMap.set(roomType, {
-          roomType,
+      if (!roomTypeMap.has(roomType)) {
+        roomTypeMap.set(roomType, {
+          ids: [room.id],
           pricePerNight: Number(room.pricePerNight),
-          availableRooms: isBooked ? 0 : 1,
           hotelId: room.hotelId,
           hotelName: room.hotel.name,
         });
       } else {
-        const existing = roomMap.get(roomType)!;
-        if (!isBooked) {
-          existing.availableRooms += 1;
+        roomTypeMap.get(roomType)!.ids.push(room.id);
+      }
+    }
+
+    let bookedRoomIdsByType = new Map<string, Set<string>>();
+    
+    if (startDate && endDate) {
+      const bookingWhereClause: any = {
+        AND: [
+          { startDate: { lt: endDate } },
+          { endDate: { gt: startDate } },
+          { bookingStatus: { not: 'CANCELED' } },
+        ],
+      };
+
+      if (hotelId) {
+        bookingWhereClause.room = { hotelId };
+      }
+
+      const bookings = await this.prisma.booking.findMany({
+        where: bookingWhereClause,
+        select: {
+          roomId: true,
+          room: {
+            select: {
+              name: true,
+            },
+          },
+        },
+      });
+
+      for (const booking of bookings) {
+        const roomType = booking.room.name.replace(/\s+\d+$/, '').trim();
+        if (!bookedRoomIdsByType.has(roomType)) {
+          bookedRoomIdsByType.set(roomType, new Set([booking.roomId]));
+        } else {
+          bookedRoomIdsByType.get(roomType)!.add(booking.roomId);
         }
       }
     }
 
-    const result = Array.from(roomMap.values()).filter((r) => r.availableRooms > 0);
+    const result: RoomTypeAvailability[] = [];
+
+    for (const [roomType, data] of roomTypeMap) {
+      const totalRooms = data.ids.length;
+      const bookedIds = bookedRoomIdsByType.get(roomType) || new Set<string>();
+      const availableRooms = totalRooms - bookedIds.size;
+
+      result.push({
+        roomType,
+        pricePerNight: data.pricePerNight,
+        availableRooms,
+        hotelId: data.hotelId,
+        hotelName: data.hotelName,
+      });
+    }
     
     return result.sort((a, b) => a.pricePerNight - b.pricePerNight);
   }
