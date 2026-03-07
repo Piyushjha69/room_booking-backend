@@ -9,6 +9,13 @@ export interface RoomTypeAvailability {
   hotelName: string;
 }
 
+export interface GroupedRoomType {
+  roomType: string;
+  totalRooms: number;
+  pricePerNight: number;
+  roomIds: string[];
+}
+
 export class RoomService {
   constructor(private prisma: PrismaClient) {}
 
@@ -340,5 +347,102 @@ export class RoomService {
     return await this.prisma.room.delete({
       where: { id: roomId },
     });
+  }
+
+  async getGroupedRoomsByHotel(hotelId: string): Promise<GroupedRoomType[]> {
+    if (!hotelId) {
+      throw new ValidationError('Hotel ID is required');
+    }
+
+    const hotel = await this.prisma.hotel.findUnique({
+      where: { id: hotelId },
+    });
+
+    if (!hotel) {
+      throw new NotFoundError('Hotel not found');
+    }
+
+    const rooms = await this.prisma.room.findMany({
+      where: { hotelId },
+      select: {
+        id: true,
+        name: true,
+        pricePerNight: true,
+      },
+      orderBy: {
+        name: 'asc',
+      },
+    });
+
+    const groupedMap = new Map<string, { ids: string[]; pricePerNight: number }>();
+
+    for (const room of rooms) {
+      const roomType = room.name.replace(/\s+\d+$/, '').trim();
+      if (!groupedMap.has(roomType)) {
+        groupedMap.set(roomType, {
+          ids: [room.id],
+          pricePerNight: Number(room.pricePerNight),
+        });
+      } else {
+        groupedMap.get(roomType)!.ids.push(room.id);
+      }
+    }
+
+    const result: GroupedRoomType[] = [];
+    for (const [roomType, data] of groupedMap) {
+      result.push({
+        roomType,
+        totalRooms: data.ids.length,
+        pricePerNight: data.pricePerNight,
+        roomIds: data.ids,
+      });
+    }
+
+    return result.sort((a, b) => a.pricePerNight - b.pricePerNight);
+  }
+
+  async deleteRoomsByType(hotelId: string, roomType: string) {
+    if (!hotelId) {
+      throw new ValidationError('Hotel ID is required');
+    }
+
+    if (!roomType || roomType.trim().length === 0) {
+      throw new ValidationError('Room type is required');
+    }
+
+    const hotel = await this.prisma.hotel.findUnique({
+      where: { id: hotelId },
+    });
+
+    if (!hotel) {
+      throw new NotFoundError('Hotel not found');
+    }
+
+    const rooms = await this.prisma.room.findMany({
+      where: { hotelId },
+      select: {
+        id: true,
+        name: true,
+      },
+    });
+
+    const roomsToDelete = rooms.filter(room => {
+      const extractedType = room.name.replace(/\s+\d+$/, '').trim();
+      return extractedType === roomType;
+    });
+
+    if (roomsToDelete.length === 0) {
+      throw new NotFoundError('No rooms found for this type');
+    }
+
+    const result = await this.prisma.room.deleteMany({
+      where: {
+        id: {
+          in: roomsToDelete.map(r => r.id),
+        },
+      },
+    });
+
+    return result;
   }
 }

@@ -1,0 +1,958 @@
+{
+  "info": {
+    "_postman_id": "room-booking-api-collection",
+    "name": "Room Booking System API",
+    "description": "Complete API collection for the Room Booking System with authentication, hotels, rooms, bookings, and admin endpoints.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john.doe@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "register"]
+            },
+            "description": "Register a new user account. Returns access token, refresh token, and user details."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "status": "Created",
+              "code": 201,
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 201,\n  \"message\": \"Registration successful\",\n  \"data\": {\n    \"accessToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\",\n    \"refreshToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\",\n    \"user\": {\n      \"id\": \"uuid-here\",\n      \"name\": \"John Doe\",\n      \"email\": \"john.doe@example.com\",\n      \"role\": \"USER\",\n      \"createdAt\": \"2024-01-01T00:00:00.000Z\"\n    }\n  }\n}"
+            },
+            {
+              "name": "Validation Error",
+              "status": "Bad Request",
+              "code": 400,
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"email: Invalid email format\",\n  \"error\": \"Validation Failed\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Login User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('authToken', jsonData.data.accessToken);",
+                  "    console.log('Access token saved to collection variables');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"john.doe@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Login with email and password. Automatically saves the access token to collection variables."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Login successful\",\n  \"data\": {\n    \"accessToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\",\n    \"refreshToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\",\n    \"user\": {\n      \"id\": \"uuid-here\",\n      \"name\": \"John Doe\",\n      \"email\": \"john.doe@example.com\",\n      \"role\": \"USER\",\n      \"createdAt\": \"2024-01-01T00:00:00.000Z\"\n    }\n  }\n}"
+            },
+            {
+              "name": "Invalid Credentials",
+              "status": "Unauthorized",
+              "code": 401,
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Invalid credentials\",\n  \"error\": \"Authentication Failed\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/refresh",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "refresh"]
+            },
+            "description": "Get a new access token using refresh token."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Token refreshed successfully\",\n  \"data\": {\n    \"accessToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Logout User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "logout"]
+            },
+            "description": "Logout current user session. Requires authentication."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Logout successful\",\n  \"data\": {}\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Hotels",
+      "item": [
+        {
+          "name": "Get All Hotels",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/hotels",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "hotels"]
+            },
+            "description": "Get all hotels with their rooms and room types."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Hotels retrieved successfully\",\n  \"data\": [\n    {\n      \"id\": \"uuid-here\",\n      \"name\": \"Grand Plaza Hotel\",\n      \"rooms\": [\n        {\n          \"id\": \"uuid-here\",\n          \"name\": \"Deluxe Room\",\n          \"pricePerNight\": \"150.00\"\n        }\n      ],\n      \"roomTypes\": [\n        {\n          \"type\": \"Deluxe\",\n          \"count\": 5,\n          \"pricePerNight\": 150\n        }\n      ],\n      \"totalRooms\": 10,\n      \"minPrice\": 100,\n      \"maxPrice\": 300\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get Hotel by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/hotels/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "hotels", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "uuid-here"
+                }
+              ]
+            },
+            "description": "Get a specific hotel by ID with all its rooms."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Hotel retrieved successfully\",\n  \"data\": {\n    \"id\": \"uuid-here\",\n    \"name\": \"Grand Plaza Hotel\",\n    \"rooms\": [\n      {\n        \"id\": \"uuid-here\",\n        \"name\": \"Deluxe Room\",\n        \"pricePerNight\": \"150.00\",\n        \"hotelId\": \"uuid-here\"\n      }\n    ]\n  }\n}"
+            },
+            {
+              "name": "Not Found",
+              "status": "Not Found",
+              "code": 404,
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"Hotel not found\",\n  \"error\": \"Not Found\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Create Hotel",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Grand Plaza Hotel\",\n  \"rooms\": [\n    {\n      \"name\": \"Deluxe Room\",\n      \"pricePerNight\": 150\n    },\n    {\n      \"name\": \"Suite\",\n      \"pricePerNight\": 250\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/hotels",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "hotels"]
+            },
+            "description": "Create a new hotel with initial rooms. Admin only."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "status": "Created",
+              "code": 201,
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 201,\n  \"message\": \"Hotel created successfully\",\n  \"data\": {\n    \"id\": \"uuid-here\",\n    \"name\": \"Grand Plaza Hotel\",\n    \"rooms\": [\n      {\n        \"id\": \"uuid-here\",\n        \"name\": \"Deluxe Room\",\n        \"pricePerNight\": \"150.00\"\n      }\n    ]\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Update Hotel",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Hotel Name\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/hotels/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "hotels", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "uuid-here"
+                }
+              ]
+            },
+            "description": "Update hotel name. Admin only."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Hotel updated successfully\",\n  \"data\": {\n    \"id\": \"uuid-here\",\n    \"name\": \"Updated Hotel Name\",\n    \"rooms\": []\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Delete Hotel",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/hotels/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "hotels", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "uuid-here"
+                }
+              ]
+            },
+            "description": "Delete a hotel and all its rooms. Admin only."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Hotel deleted successfully\",\n  \"data\": null\n}"
+            }
+          ]
+        },
+        {
+          "name": "Add Room to Hotel",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Executive Suite\",\n  \"pricePerNight\": 300\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/hotels/:hotelId/rooms",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "hotels", ":hotelId", "rooms"],
+              "variable": [
+                {
+                  "key": "hotelId",
+                  "value": "uuid-here"
+                }
+              ]
+            },
+            "description": "Add a new room to an existing hotel. Admin only."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "status": "Created",
+              "code": 201,
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 201,\n  \"message\": \"Room added successfully\",\n  \"data\": {\n    \"id\": \"uuid-here\",\n    \"name\": \"Executive Suite\",\n    \"pricePerNight\": \"300.00\",\n    \"hotelId\": \"uuid-here\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Update Room",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Room Name\",\n  \"pricePerNight\": 200\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/rooms/:roomId",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "rooms", ":roomId"],
+              "variable": [
+                {
+                  "key": "roomId",
+                  "value": "uuid-here"
+                }
+              ]
+            },
+            "description": "Update room name or price. Admin only."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Room updated successfully\",\n  \"data\": {\n    \"id\": \"uuid-here\",\n    \"name\": \"Updated Room Name\",\n    \"pricePerNight\": \"200.00\",\n    \"hotelId\": \"uuid-here\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Delete Room",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/rooms/:roomId",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "rooms", ":roomId"],
+              "variable": [
+                {
+                  "key": "roomId",
+                  "value": "uuid-here"
+                }
+              ]
+            },
+            "description": "Delete a room from hotel. Admin only."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Room deleted successfully\",\n  \"data\": null\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Rooms",
+      "item": [
+        {
+          "name": "Get All Rooms",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/rooms",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "rooms"]
+            },
+            "description": "Get all rooms across all hotels."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Rooms retrieved successfully\",\n  \"data\": [\n    {\n      \"id\": \"uuid-here\",\n      \"name\": \"Deluxe Room\",\n      \"pricePerNight\": \"150.00\",\n      \"hotelId\": \"uuid-here\",\n      \"hotel\": {\n        \"id\": \"uuid-here\",\n        \"name\": \"Grand Plaza Hotel\"\n      }\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get Room by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/rooms/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "rooms", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "uuid-here"
+                }
+              ]
+            },
+            "description": "Get a specific room by ID."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Room retrieved successfully\",\n  \"data\": {\n    \"id\": \"uuid-here\",\n    \"name\": \"Deluxe Room\",\n    \"pricePerNight\": \"150.00\",\n    \"hotelId\": \"uuid-here\",\n    \"hotel\": {\n      \"id\": \"uuid-here\",\n      \"name\": \"Grand Plaza Hotel\"\n    }\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get Available Rooms",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/rooms/available?startDate=2024-12-01T00:00:00.000Z&endDate=2024-12-05T00:00:00.000Z",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "rooms", "available"],
+              "query": [
+                {
+                  "key": "startDate",
+                  "value": "2024-12-01T00:00:00.000Z",
+                  "description": "Check-in date in ISO format"
+                },
+                {
+                  "key": "endDate",
+                  "value": "2024-12-05T00:00:00.000Z",
+                  "description": "Check-out date in ISO format"
+                }
+              ]
+            },
+            "description": "Get all available rooms for specific dates."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Available rooms retrieved successfully\",\n  \"data\": [\n    {\n      \"id\": \"uuid-here\",\n      \"name\": \"Deluxe Room\",\n      \"pricePerNight\": \"150.00\",\n      \"hotelId\": \"uuid-here\"\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get Available Room Types",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/rooms/available/types?startDate=2024-12-01T00:00:00.000Z&endDate=2024-12-05T00:00:00.000Z&hotelId=uuid-here",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "rooms", "available", "types"],
+              "query": [
+                {
+                  "key": "startDate",
+                  "value": "2024-12-01T00:00:00.000Z",
+                  "description": "Check-in date in ISO format"
+                },
+                {
+                  "key": "endDate",
+                  "value": "2024-12-05T00:00:00.000Z",
+                  "description": "Check-out date in ISO format"
+                },
+                {
+                  "key": "hotelId",
+                  "value": "uuid-here",
+                  "description": "Filter by specific hotel (optional)"
+                }
+              ]
+            },
+            "description": "Get available room types with counts and prices for specific dates."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Available room types retrieved successfully\",\n  \"data\": [\n    {\n      \"roomType\": \"Deluxe\",\n      \"pricePerNight\": 150,\n      \"availableRooms\": 5,\n      \"hotelId\": \"uuid-here\",\n      \"hotelName\": \"Grand Plaza Hotel\"\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Create Room",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"hotelId\": \"uuid-here\",\n  \"name\": \"Presidential Suite\",\n  \"pricePerNight\": 500\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/rooms",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "rooms"]
+            },
+            "description": "Create a new room. Admin only."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "status": "Created",
+              "code": 201,
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 201,\n  \"message\": \"Room created successfully\",\n  \"data\": {\n    \"id\": \"uuid-here\",\n    \"name\": \"Presidential Suite\",\n    \"pricePerNight\": \"500.00\",\n    \"hotelId\": \"uuid-here\"\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Bookings",
+      "item": [
+        {
+          "name": "Create Booking",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roomType\": \"Deluxe\",\n  \"hotelId\": \"uuid-here\",\n  \"startDate\": \"2024-12-01T00:00:00.000Z\",\n  \"endDate\": \"2024-12-05T00:00:00.000Z\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/bookings",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "bookings"]
+            },
+            "description": "Create a new booking. Requires authentication. Validates dates and room availability."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "status": "Created",
+              "code": 201,
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 201,\n  \"message\": \"Booking created successfully\",\n  \"data\": {\n    \"id\": \"uuid-here\",\n    \"userId\": \"uuid-here\",\n    \"roomId\": \"uuid-here\",\n    \"startDate\": \"2024-12-01T00:00:00.000Z\",\n    \"endDate\": \"2024-12-05T00:00:00.000Z\",\n    \"bookingStatus\": \"BOOKED\",\n    \"createdAt\": \"2024-01-01T00:00:00.000Z\",\n    \"room\": {\n      \"id\": \"uuid-here\",\n      \"name\": \"Deluxe Room\",\n      \"pricePerNight\": \"150.00\",\n      \"hotel\": {\n        \"id\": \"uuid-here\",\n        \"name\": \"Grand Plaza Hotel\"\n      }\n    },\n    \"user\": {\n      \"id\": \"uuid-here\",\n      \"name\": \"John Doe\",\n      \"email\": \"john.doe@example.com\"\n    }\n  }\n}"
+            },
+            {
+              "name": "Validation Error - Past Date",
+              "status": "Bad Request",
+              "code": 400,
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"startDate: Start date cannot be in the past\",\n  \"error\": \"Validation Failed\"\n}"
+            },
+            {
+              "name": "No Available Rooms",
+              "status": "Bad Request",
+              "code": 400,
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"No available rooms for the selected dates\",\n  \"error\": \"Bad Request\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get User Bookings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/bookings",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "bookings"]
+            },
+            "description": "Get all bookings for the authenticated user."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Bookings retrieved successfully\",\n  \"data\": [\n    {\n      \"id\": \"uuid-here\",\n      \"userId\": \"uuid-here\",\n      \"roomId\": \"uuid-here\",\n      \"startDate\": \"2024-12-01T00:00:00.000Z\",\n      \"endDate\": \"2024-12-05T00:00:00.000Z\",\n      \"bookingStatus\": \"BOOKED\",\n      \"createdAt\": \"2024-01-01T00:00:00.000Z\",\n      \"room\": {\n        \"id\": \"uuid-here\",\n        \"name\": \"Deluxe Room\",\n        \"pricePerNight\": \"150.00\",\n        \"hotel\": {\n          \"id\": \"uuid-here\",\n          \"name\": \"Grand Plaza Hotel\"\n        }\n      }\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get Booking by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/bookings/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "bookings", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "uuid-here"
+                }
+              ]
+            },
+            "description": "Get a specific booking by ID. Only accessible by booking owner."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Booking retrieved successfully\",\n  \"data\": {\n    \"id\": \"uuid-here\",\n    \"userId\": \"uuid-here\",\n    \"roomId\": \"uuid-here\",\n    \"startDate\": \"2024-12-01T00:00:00.000Z\",\n    \"endDate\": \"2024-12-05T00:00:00.000Z\",\n    \"bookingStatus\": \"BOOKED\",\n    \"room\": {\n      \"id\": \"uuid-here\",\n      \"name\": \"Deluxe Room\",\n      \"pricePerNight\": \"150.00\",\n      \"hotel\": {\n        \"id\": \"uuid-here\",\n        \"name\": \"Grand Plaza Hotel\"\n      }\n    },\n    \"user\": {\n      \"id\": \"uuid-here\",\n      \"name\": \"John Doe\",\n      \"email\": \"john.doe@example.com\"\n    }\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Update Booking",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startDate\": \"2024-12-10T00:00:00.000Z\",\n  \"endDate\": \"2024-12-15T00:00:00.000Z\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/bookings/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "bookings", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "uuid-here"
+                }
+              ]
+            },
+            "description": "Update booking dates or status. Checks for conflicts with other bookings."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Booking updated successfully\",\n  \"data\": {\n    \"id\": \"uuid-here\",\n    \"userId\": \"uuid-here\",\n    \"roomId\": \"uuid-here\",\n    \"startDate\": \"2024-12-10T00:00:00.000Z\",\n    \"endDate\": \"2024-12-15T00:00:00.000Z\",\n    \"bookingStatus\": \"BOOKED\",\n    \"room\": {\n      \"id\": \"uuid-here\",\n      \"name\": \"Deluxe Room\",\n      \"pricePerNight\": \"150.00\",\n      \"hotel\": {\n        \"id\": \"uuid-here\",\n        \"name\": \"Grand Plaza Hotel\"\n      }\n    }\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Cancel Booking",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/bookings/:id/cancel",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "bookings", ":id", "cancel"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "uuid-here"
+                }
+              ]
+            },
+            "description": "Cancel a booking. Changes status to CANCELED."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Booking canceled successfully\",\n  \"data\": {\n    \"id\": \"uuid-here\",\n    \"userId\": \"uuid-here\",\n    \"roomId\": \"uuid-here\",\n    \"startDate\": \"2024-12-01T00:00:00.000Z\",\n    \"endDate\": \"2024-12-05T00:00:00.000Z\",\n    \"bookingStatus\": \"CANCELED\",\n    \"createdAt\": \"2024-01-01T00:00:00.000Z\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Delete Booking",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/bookings/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "bookings", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "uuid-here"
+                }
+              ]
+            },
+            "description": "Permanently delete a booking. Only accessible by booking owner."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Booking deleted successfully\",\n  \"data\": {}\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Get Admin Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "stats"]
+            },
+            "description": "Get system-wide statistics. Admin only."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Admin stats retrieved successfully\",\n  \"data\": {\n    \"hotels\": 5,\n    \"rooms\": 50,\n    \"bookings\": 120,\n    \"users\": 200\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "users"]
+            },
+            "description": "Get all users in the system. Admin only."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Users retrieved successfully\",\n  \"data\": [\n    {\n      \"id\": \"uuid-here\",\n      \"email\": \"john.doe@example.com\",\n      \"name\": \"John Doe\",\n      \"role\": \"USER\",\n      \"createdAt\": \"2024-01-01T00:00:00.000Z\"\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get All Bookings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/bookings?status=all&page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "bookings"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "all",
+                  "description": "Filter by booking status: all, BOOKED, PENDING, CANCELED"
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number"
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Items per page"
+                }
+              ]
+            },
+            "description": "Get all bookings with pagination. Admin only."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Bookings retrieved successfully\",\n  \"data\": {\n    \"bookings\": [\n      {\n        \"id\": \"uuid-here\",\n        \"userId\": \"uuid-here\",\n        \"roomId\": \"uuid-here\",\n        \"startDate\": \"2024-12-01T00:00:00.000Z\",\n        \"endDate\": \"2024-12-05T00:00:00.000Z\",\n        \"bookingStatus\": \"BOOKED\",\n        \"createdAt\": \"2024-01-01T00:00:00.000Z\",\n        \"user\": {\n          \"id\": \"uuid-here\",\n          \"name\": \"John Doe\",\n          \"email\": \"john.doe@example.com\"\n        },\n        \"room\": {\n          \"id\": \"uuid-here\",\n          \"name\": \"Deluxe Room\",\n          \"pricePerNight\": \"150.00\",\n          \"hotel\": {\n            \"id\": \"uuid-here\",\n            \"name\": \"Grand Plaza Hotel\"\n          }\n        }\n      }\n    ],\n    \"pagination\": {\n      \"page\": 1,\n      \"limit\": 20,\n      \"total\": 120,\n      \"totalPages\": 6\n    }\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Update User Role",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"ADMIN\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/users/:id/role",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "users", ":id", "role"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "uuid-here"
+                }
+              ]
+            },
+            "description": "Update user role (USER or ADMIN). Admin only."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"User role updated successfully\",\n  \"data\": {\n    \"id\": \"uuid-here\",\n    \"email\": \"john.doe@example.com\",\n    \"name\": \"John Doe\",\n    \"role\": \"ADMIN\",\n    \"createdAt\": \"2024-01-01T00:00:00.000Z\"\n  }\n}"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "authToken",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

@@ -185,3 +185,50 @@ export const deleteRoomController = async (
     next(error);
   }
 };
+
+export const getGroupedRoomsByHotelController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const hotelId = Array.isArray(req.params.hotelId) ? req.params.hotelId[0] : req.params.hotelId;
+
+    if (!hotelId) {
+      throw new ValidationError('Hotel ID is required');
+    }
+
+    const roomService = new RoomService(req.db!);
+    const groupedRooms = await roomService.getGroupedRoomsByHotel(hotelId);
+
+    sendSuccess(res, 200, 'Grouped rooms retrieved successfully', groupedRooms);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteRoomsByTypeController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const hotelId = Array.isArray(req.params.hotelId) ? req.params.hotelId[0] : req.params.hotelId;
+    const { roomType } = req.body;
+
+    if (!hotelId) {
+      throw new ValidationError('Hotel ID is required');
+    }
+
+    if (!roomType) {
+      throw new ValidationError('Room type is required');
+    }
+
+    const roomService = new RoomService(req.db!);
+    await roomService.deleteRoomsByType(hotelId, roomType);
+
+    sendSuccess(res, 200, 'Room type deleted successfully', null);
+  } catch (error) {
+    next(error);
+  }
+};
