@@ -1,6 +1,14 @@
 import { PrismaClient } from '../generated/prisma';
 import { NotFoundError, ValidationError } from '../errors/AppError';
 
+export interface RoomTypeAvailability {
+  roomType: string;
+  pricePerNight: number;
+  availableRooms: number;
+  hotelId: string;
+  hotelName: string;
+}
+
 export class RoomService {
   constructor(private prisma: PrismaClient) {}
 
@@ -54,8 +62,74 @@ export class RoomService {
     return room;
   }
 
+  async getAvailableRoomTypes(startDate?: Date, endDate?: Date, hotelId?: string) {
+    const whereClause: any = {};
+    if (hotelId) {
+      whereClause.hotelId = hotelId;
+    }
+
+    const rooms = await this.prisma.room.findMany({
+      where: whereClause,
+      select: {
+        id: true,
+        name: true,
+        pricePerNight: true,
+        hotelId: true,
+        hotel: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    let bookedRoomIds: string[] = [];
+    
+    if (startDate && endDate) {
+      const bookings = await this.prisma.booking.findMany({
+        where: {
+          AND: [
+            { startDate: { lt: endDate } },
+            { endDate: { gt: startDate } },
+            { bookingStatus: { not: 'CANCELED' } },
+          ],
+        },
+        select: {
+          roomId: true,
+        },
+      });
+      bookedRoomIds = bookings.map((b) => b.roomId);
+    }
+
+    const roomMap = new Map<string, RoomTypeAvailability>();
+
+    for (const room of rooms) {
+      const roomType = room.name.replace(/\s+\d+$/, '').trim();
+      const isBooked = bookedRoomIds.includes(room.id);
+
+      if (!roomMap.has(roomType)) {
+        roomMap.set(roomType, {
+          roomType,
+          pricePerNight: Number(room.pricePerNight),
+          availableRooms: isBooked ? 0 : 1,
+          hotelId: room.hotelId,
+          hotelName: room.hotel.name,
+        });
+      } else {
+        const existing = roomMap.get(roomType)!;
+        if (!isBooked) {
+          existing.availableRooms += 1;
+        }
+      }
+    }
+
+    const result = Array.from(roomMap.values()).filter((r) => r.availableRooms > 0);
+    
+    return result.sort((a, b) => a.pricePerNight - b.pricePerNight);
+  }
+
   async getAvailableRooms(startDate: Date, endDate: Date) {
-    // Get rooms that don't have overlapping bookings in the given date range
     const bookedRooms = await this.prisma.booking.findMany({
       where: {
         AND: [
@@ -97,6 +171,49 @@ export class RoomService {
     });
 
     return availableRooms;
+  }
+
+  async findAvailableRoomByType(hotelId: string, roomType: string, startDate: Date, endDate: Date) {
+    const rooms = await this.prisma.room.findMany({
+      where: { hotelId },
+      select: {
+        id: true,
+        name: true,
+      },
+    });
+
+    const typePattern = new RegExp(`^${roomType}$|^${roomType}\s+\d+$`, 'i');
+    const matchingRooms = rooms.filter((r) => typePattern.test(r.name));
+
+    if (matchingRooms.length === 0) {
+      throw new NotFoundError('No rooms found for this room type');
+    }
+
+    const roomIds = matchingRooms.map((r) => r.id);
+
+    const bookedRooms = await this.prisma.booking.findMany({
+      where: {
+        roomId: { in: roomIds },
+        AND: [
+          { startDate: { lt: endDate } },
+          { endDate: { gt: startDate } },
+          { bookingStatus: { not: 'CANCELED' } },
+        ],
+      },
+      select: {
+        roomId: true,
+      },
+    });
+
+    const bookedRoomIds = new Set(bookedRooms.map((b) => b.roomId));
+
+    for (const room of matchingRooms) {
+      if (!bookedRoomIds.has(room.id)) {
+        return room.id;
+      }
+    }
+
+    throw new ValidationError('No available rooms of this type for selected dates');
   }
 
   async createRoom(hotelId: string, name: string, pricePerNight: number) {

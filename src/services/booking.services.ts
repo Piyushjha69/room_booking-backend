@@ -1,32 +1,69 @@
 import { PrismaClient } from '../generated/prisma';
 import { CreateBookingDTO, UpdateBookingDTO } from '../schemas/booking.schema';
 import { NotFoundError, ConflictError, ValidationError } from '../errors/AppError';
+import { RoomService } from './room.services';
 
 export class BookingService {
   constructor(private prisma: PrismaClient) {}
 
   async createBooking(userId: string, data: CreateBookingDTO) {
-    const { roomId, startDate, endDate } = data;
+    const { roomType, hotelId, startDate, endDate } = data;
 
     const start = new Date(startDate);
     const end = new Date(endDate);
 
-    // Verify room exists
-    const room = await this.prisma.room.findUnique({
-      where: { id: roomId },
-      select: { id: true, pricePerNight: true },
-    });
-
-    if (!room) {
-      throw new NotFoundError('Room not found');
-    }
-
-    // Use transaction to ensure atomic booking creation
     const booking = await this.prisma.$transaction(async (tx) => {
-      // Check for overlapping bookings
+      const rooms = await tx.room.findMany({
+        where: { hotelId },
+        select: {
+          id: true,
+          name: true,
+        },
+      });
+
+      const normalizedRoomType = roomType.toLowerCase().trim();
+      const matchingRooms = rooms.filter((r) => {
+        const roomTypeFromName = r.name.replace(/\s+\d+$/, '').trim().toLowerCase();
+        return roomTypeFromName === normalizedRoomType;
+      });
+
+      if (matchingRooms.length === 0) {
+        throw new NotFoundError('No rooms found for this room type');
+      }
+
+      const roomIds = matchingRooms.map((r) => r.id);
+
+      const bookedRooms = await tx.booking.findMany({
+        where: {
+          roomId: { in: roomIds },
+          AND: [
+            { startDate: { lt: end } },
+            { endDate: { gt: start } },
+            { bookingStatus: { not: 'CANCELED' } },
+          ],
+        },
+        select: {
+          roomId: true,
+        },
+      });
+
+      const bookedRoomIds = new Set(bookedRooms.map((b) => b.roomId));
+
+      let selectedRoomId: string | null = null;
+      for (const room of matchingRooms) {
+        if (!bookedRoomIds.has(room.id)) {
+          selectedRoomId = room.id;
+          break;
+        }
+      }
+
+      if (!selectedRoomId) {
+        throw new ValidationError('No available rooms for the selected dates');
+      }
+
       const overlappingBooking = await tx.booking.findFirst({
         where: {
-          roomId,
+          roomId: selectedRoomId,
           bookingStatus: { not: 'CANCELED' },
           AND: [
             { startDate: { lt: end } },
@@ -41,14 +78,13 @@ export class BookingService {
         );
       }
 
-      // Create the booking
       return await tx.booking.create({
         data: {
           userId,
-          roomId,
+          roomId: selectedRoomId,
           startDate: start,
           endDate: end,
-          bookingStatus: 'PENDING',
+          bookingStatus: 'BOOKED',
         },
         select: {
           id: true,

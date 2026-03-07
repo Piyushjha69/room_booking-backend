@@ -3,9 +3,16 @@ export interface RoomInput {
   pricePerNight: number;
 }
 
+export interface RoomGroup {
+  type: string;
+  pricePerNight: number;
+  count: number;
+}
+
 export interface CreateHotelDTO {
   name: string;
   rooms?: RoomInput[];
+  roomGroups?: RoomGroup[];
 }
 
 export interface UpdateHotelDTO {

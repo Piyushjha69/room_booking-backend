@@ -3,6 +3,7 @@ import {
   getAllRoomsController,
   getRoomByIdController,
   getAvailableRoomsController,
+  getAvailableRoomTypesController,
   createRoomController,
   updateRoomController,
   deleteRoomController,
@@ -18,4 +19,6 @@ roomRouter.delete('/api/rooms/:id', authMiddleware, adminMiddleware, deleteRoomC
 
 roomRouter.get('/api/rooms', getAllRoomsController);
 roomRouter.get('/api/rooms/available', getAvailableRoomsController);
+roomRouter.get('/api/rooms/available/types', getAvailableRoomTypesController);
+roomRouter.get('/api/rooms/types', getAvailableRoomTypesController);
 roomRouter.get('/api/rooms/:id', getRoomByIdController);

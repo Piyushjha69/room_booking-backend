@@ -40,6 +40,48 @@ export const getRoomByIdController = async (
   }
 };
 
+export const getAvailableRoomTypesController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { startDate, endDate, hotelId } = req.query;
+
+    const roomService = new RoomService(req.db!);
+    let rooms;
+
+    if (startDate && endDate) {
+      const start = new Date(startDate as string);
+      const end = new Date(endDate as string);
+
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        throw new ValidationError('Invalid date format');
+      }
+
+      if (end <= start) {
+        throw new ValidationError('End date must be after start date');
+      }
+
+      rooms = await roomService.getAvailableRoomTypes(
+        start,
+        end,
+        hotelId as string | undefined
+      );
+    } else {
+      rooms = await roomService.getAvailableRoomTypes(
+        undefined,
+        undefined,
+        hotelId as string | undefined
+      );
+    }
+
+    sendSuccess(res, 200, 'Available room types retrieved successfully', rooms);
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getAvailableRoomsController = async (
   req: Request,
   res: Response,

@@ -1,6 +1,6 @@
 import { PrismaClient } from '../generated/prisma';
 import { ConflictError, NotFoundError, ValidationError } from '../errors/AppError';
-import { CreateHotelDTO, RoomInput, AddRoomDTO, UpdateRoomDTO, UpdateHotelDTO } from '../types/hotel.types';
+import { CreateHotelDTO, RoomInput, RoomGroup, AddRoomDTO, UpdateRoomDTO, UpdateHotelDTO } from '../types/hotel.types';
 
 export class HotelService {
   constructor(private prisma: PrismaClient) {}
@@ -14,6 +14,21 @@ export class HotelService {
     }
   }
 
+  private validateRoomGroup(group: RoomGroup): void {
+    if (!group.type || group.type.trim().length === 0) {
+      throw new ValidationError('Room type is required');
+    }
+    if (group.pricePerNight <= 0) {
+      throw new ValidationError('Room price must be greater than 0');
+    }
+    if (!Number.isInteger(group.count) || group.count <= 0) {
+      throw new ValidationError('Number of rooms must be a positive integer');
+    }
+    if (group.count > 10000) {
+      throw new ValidationError('Number of rooms cannot exceed 10000');
+    }
+  }
+
   private validateRoomsForDuplicates(rooms: RoomInput[]): void {
     const names = rooms.map(r => r.name.toLowerCase());
     const uniqueNames = new Set(names);
@@ -22,12 +37,34 @@ export class HotelService {
     }
   }
 
+  private validateRoomGroupsForDuplicates(groups: RoomGroup[]): void {
+    const types = groups.map(g => g.type.toLowerCase());
+    const uniqueTypes = new Set(types);
+    if (types.length !== uniqueTypes.size) {
+      throw new ValidationError('Duplicate room types are not allowed');
+    }
+  }
+
+  private generateRoomsFromGroups(groups: RoomGroup[]): RoomInput[] {
+    const rooms: RoomInput[] = [];
+    for (const group of groups) {
+      for (let i = 1; i <= group.count; i++) {
+        rooms.push({
+          name: `${group.type} ${i}`,
+          pricePerNight: group.pricePerNight,
+        });
+      }
+    }
+    return rooms;
+  }
+
   async createHotel(data: CreateHotelDTO) {
     if (!data.name || data.name.trim().length === 0) {
       throw new ValidationError('Hotel name is required');
     }
 
-    const rooms = data.rooms || [];
+    let rooms = data.rooms || [];
+    const roomGroups = data.roomGroups || [];
 
     const existingHotel = await this.prisma.hotel.findFirst({
       where: {
@@ -41,22 +78,31 @@ export class HotelService {
       throw new ConflictError('Hotel with this name already exists');
     }
 
+    if (roomGroups.length > 0) {
+      roomGroups.forEach(group => this.validateRoomGroup(group));
+      this.validateRoomGroupsForDuplicates(roomGroups);
+      const generatedRooms = this.generateRoomsFromGroups(roomGroups);
+      rooms = [...rooms, ...generatedRooms];
+    }
+
     if (rooms.length > 0) {
       rooms.forEach(room => this.validateRoomInput(room));
       this.validateRoomsForDuplicates(rooms);
     }
 
-    return await this.prisma.hotel.create({
-      data: {
-        name: data.name,
-        rooms: {
-          create: rooms.map(room => ({
-            name: room.name,
-            pricePerNight: room.pricePerNight,
-          })),
+    return await this.prisma.$transaction(async (tx) => {
+      return await tx.hotel.create({
+        data: {
+          name: data.name,
+          rooms: {
+            create: rooms.map(room => ({
+              name: room.name,
+              pricePerNight: room.pricePerNight,
+            })),
+          },
         },
-      },
-      include: { rooms: true },
+        include: { rooms: true },
+      });
     });
   }
 

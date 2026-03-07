@@ -4,10 +4,13 @@ import dotenv from 'dotenv';
 import { PrismaClient } from './generated/prisma';
 import { validateEnvironment } from './utils/env.utils';
 import { errorHandler } from './middleware/errorHandler';
+import { requestLogger } from './middleware/requestLogger';
+import { apiLimiter, authLimiter, bookingLimiter } from './middleware/rateLimiter';
 import { authRouter } from './routes/auth.routes';
 import { roomRouter } from './routes/room.routes';
 import { bookingRouter } from './routes/booking.routes';
 import { hotelRouter } from './routes/hotel.routes';
+import { adminRouter } from './routes/admin.routes';
 
 dotenv.config();
 
@@ -33,6 +36,18 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors());
 
+// Apply request logging
+app.use(requestLogger);
+
+// Apply general API rate limiting
+app.use('/api', apiLimiter);
+
+// Apply stricter rate limiting to auth endpoints
+app.use('/api/auth', authLimiter);
+
+// Apply booking rate limiting
+app.use('/api/bookings', bookingLimiter);
+
 app.use((req: Request, res: Response, next: NextFunction) => {
   req.db = getPrismaClient();
   next();
@@ -46,6 +61,7 @@ app.use(authRouter);
 app.use(hotelRouter);
 app.use(roomRouter);
 app.use(bookingRouter);
+app.use(adminRouter);
 
 app.use((req, res) => {
   res.status(404).json({
