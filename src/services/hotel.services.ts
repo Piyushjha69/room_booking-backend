@@ -1,6 +1,6 @@
 import { PrismaClient } from '../generated/prisma';
 import { ConflictError, NotFoundError, ValidationError } from '../errors/AppError';
-import { CreateHotelDTO, RoomInput, RoomGroup, AddRoomDTO, UpdateRoomDTO, UpdateHotelDTO } from '../types/hotel.types';
+import { CreateHotelDTO, RoomInput, RoomGroup, AddRoomDTO, UpdateRoomDTO, UpdateHotelDTO, HotelWithRoomTypes, RoomTypeGroup } from '../types/hotel.types';
 
 export class HotelService {
   constructor(private prisma: PrismaClient) {}
@@ -267,9 +267,47 @@ export class HotelService {
     });
   }
 
-  async getAllHotels() {
-    return await this.prisma.hotel.findMany({
+  async getAllHotels(): Promise<HotelWithRoomTypes[]> {
+    const hotels = await this.prisma.hotel.findMany({
       include: { rooms: true },
+    });
+
+    return hotels.map(hotel => {
+      const roomTypeMap = new Map<string, { count: number; pricePerNight: number }>();
+
+      for (const room of hotel.rooms) {
+        const roomType = room.name.replace(/\s+\d+$/, '').trim();
+        if (!roomTypeMap.has(roomType)) {
+          roomTypeMap.set(roomType, { count: 1, pricePerNight: Number(room.pricePerNight) });
+        } else {
+          roomTypeMap.get(roomType)!.count += 1;
+        }
+      }
+
+      const roomTypes: RoomTypeGroup[] = [];
+      let minPrice = Infinity;
+      let maxPrice = 0;
+
+      for (const [type, data] of roomTypeMap) {
+        roomTypes.push({
+          type,
+          count: data.count,
+          pricePerNight: data.pricePerNight,
+        });
+        if (data.pricePerNight < minPrice) minPrice = data.pricePerNight;
+        if (data.pricePerNight > maxPrice) maxPrice = data.pricePerNight;
+      }
+
+      roomTypes.sort((a, b) => a.pricePerNight - b.pricePerNight);
+
+      return {
+        id: hotel.id,
+        name: hotel.name,
+        roomTypes,
+        totalRooms: hotel.rooms.length,
+        minPrice: minPrice === Infinity ? 0 : minPrice,
+        maxPrice: maxPrice === 0 ? 0 : maxPrice,
+      };
     });
   }
 

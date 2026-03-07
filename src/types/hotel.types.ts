@@ -43,3 +43,18 @@ export interface RoomResponse {
   createdAt: Date;
   updatedAt: Date;
 }
+
+export interface RoomTypeGroup {
+  type: string;
+  count: number;
+  pricePerNight: number;
+}
+
+export interface HotelWithRoomTypes {
+  id: string;
+  name: string;
+  roomTypes: RoomTypeGroup[];
+  totalRooms: number;
+  minPrice: number;
+  maxPrice: number;
+}
