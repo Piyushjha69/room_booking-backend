@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "concurrently \"tsc -w\" \"nodemon --watch dist --ext js --delay 1 ./dist/server.js\"",
-    "build": "tsc --project tsconfig.json && npm run copy:generated",
+    "build": "npm run prisma:generate && tsc --project tsconfig.json && npm run copy:generated",
     "copy:generated": "node -e \"require('fs').cpSync('src/generated', 'dist/generated', {recursive: true, force: true})\"",
     "start": "node --enable-source-maps ./dist/server.js",
     "test": "echo \"Error: no test specified\" && exit 1",
