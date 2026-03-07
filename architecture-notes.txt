@@ -1,0 +1,151 @@
+ROOM BOOKING SYSTEM - ARCHITECTURE NOTES
+========================================
+
+Written as developer notes after completing the project.
+
+
+1. HOW OVERLAPPING BOOKINGS ARE PREVENTED
+==========================================
+
+The core logic is in the booking service when a user tries to book a room. Here's how we handle it:
+
+When someone requests a booking, we first find all rooms matching the requested room type in that hotel. 
+Then we run a critical check: we query the database for any existing bookings on those rooms that overlap 
+with the requested dates.
+
+The overlap logic is simple but important. We have a booking with a startDate and endDate. A new booking overlaps if:
+- The new booking starts BEFORE the existing booking ends (startDate < existing.endDate)
+- AND the new booking ends AFTER the existing booking starts (endDate > existing.startDate)
+
+This is a standard interval overlap check. We also ignore CANCELED bookings because those don't actually block availability.
+
+Here's what happens step by step:
+
+1. User requests booking for room type "Deluxe NON-AC" from Jan 10-15
+2. We find all "Deluxe NON-AC" rooms in the hotel
+3. We query: "Find all bookings for these rooms where:
+   - startDate < Jan 15 (booking ends after our start)
+   - endDate > Jan 10 (booking starts before our end)
+   - status != CANCELED"
+4. If we find any, we reject the booking
+5. If not, we loop through the matching rooms and pick the first one with no conflicts
+6. We do a final safety check on the selected room to make sure nothing slipped through
+7. Everything happens in a database transaction, so if anything fails halfway, we rollback
+
+The important thing is that we use transactions (prisma.$transaction). This ensures that between the time we check for overlaps and 
+the time we create the booking, nothing else can create a conflicting booking. Without this, two people could slip through both checks simultaneously.
+
+When updating a booking dates, we do the same check but exclude the current booking from the conflict search, otherwise it would conflict with itself.
+
+
+2. WHY THE PROJECT IS STRUCTURED THIS WAY
+==========================================
+
+The backend follows a three-layer architecture: Controllers, Services, and Data Access.
+
+Controllers sit at the HTTP level. They parse requests, extract query params and body data, call the service layer, and send responses. They don't do business logic.
+ We have separate controllers for bookings, hotels, rooms, auth, and admin operations.
+
+Services contain all the business logic. The BookingService handles booking creation, cancellation, date updates, and overlap checking. HotelService manages hotels
+ and room grouping. RoomService handles room operations and availability queries. AuthService manages user registration and login. This separation means if the API 
+ changes, we only update controllers. If business rules change, we only update services.
+
+Routes connect HTTP paths to controllers. We separate auth, hotel, room, and booking routes into different router files. The main server file imports and registers 
+all routers.
+
+Middleware handles cross-cutting concerns. AuthMiddleware verifies JWT tokens on protected routes. AdminMiddleware checks if a user has admin role. RateLimiter 
+prevents abuse by limiting requests per minute. ErrorHandler catches all thrown errors and formats them consistently.
+
+The database layer uses Prisma ORM. We define models for User, Hotel, Room, and Booking. Prisma generates a type-safe client so TypeScript catches database query 
+mistakes at compile time, not runtime.
+
+Why structure it this way? When you have a hotel that needs more room types, you modify the HotelService, not the controller. When you need to change how dates are 
+validated, it's in BookingService. If you need to add rate limiting to a specific endpoint, it's in middleware. Everything has one job. This makes the code much easier 
+to test, debug, and extend.
+
+Frontend structure mirrors the backend logic. We have pages for user flows (rooms, room-details, bookings) and admin pages (hotels management, user management). 
+The lib folder contains utilities: auth-context manages user state and login, api-client handles all API calls with built-in token refresh and error handling.
+
+The auth-context is a React context that wraps the entire app. It maintains user state, handles login/logout, and automatically refreshes access tokens when they expire. 
+Components can access the user and auth functions from anywhere without prop drilling.
+
+The api-client is an Axios instance with interceptors. When a request includes an Authorization header with a JWT token, it automatically adds it. 
+When a token expires (401 response), it tries to refresh silently without the user noticing. If refresh fails, it clears all tokens and redirects to login.
+
+
+3. HOW FRONTEND AND BACKEND COMMUNICATE
+========================================
+
+Everything is REST APIs. The backend runs on port 5000 and exposes endpoints like:
+
+POST /api/auth/login - Login a user
+POST /api/auth/signup - Register a new user
+POST /api/bookings - Create a booking
+GET /api/bookings/my - Get user's bookings
+GET /api/rooms/available/types - Get available room types for a hotel on specific dates
+GET /api/hotels - List all hotels
+DELETE /api/bookings/:id - Cancel a booking
+
+The frontend uses axios (wrapped in our api-client class) to make HTTP requests. Every request includes the JWT accessToken in the Authorization header as 
+"Bearer {token}".
+
+Here's a typical flow:
+
+1. User enters hotel, start date, and end date
+2. Frontend calls GET /api/rooms/available/types with those params
+3. Backend queries rooms for that hotel and checks what's booked between those dates
+4. Backend returns list of available room types with count and price
+5. Frontend displays them
+6. User clicks a room type
+7. Frontend calls POST /api/bookings with roomType, hotelId, startDate, endDate
+8. Backend runs the overlap check we described earlier
+9. If OK, creates booking and returns it with room and hotel details
+10. Frontend shows success and redirects to my-bookings page
+
+Authentication is JWT-based. When you login, the backend sends back an accessToken (15 minute expiry) and refreshToken (7 day expiry). 
+Frontend stores both in localStorage. 
+
+The accessToken is what goes in Authorization headers. It's decoded server-side using the JWT_SECRET env var. When it expires, 
+the frontend automatically calls POST /api/auth/refresh with the refreshToken to get a new accessToken. This happens silently in the api-client interceptor.
+
+All protected endpoints check the token using authMiddleware. If no token or invalid token, it returns 401 Unauthorized.
+
+Admin endpoints have an extra check: adminMiddleware verifies the user's role is ADMIN. Regular users get 403 Forbidden.
+
+Error handling is consistent. Every response has this shape:
+
+{
+  "success": true/false,
+  "statusCode": 200/400/401/etc,
+  "message": "Human readable message",
+  "data": {...} or null
+}
+
+The backend uses a custom error class hierarchy (ValidationError, NotFoundError, ConflictError, AuthenticationError) that gets caught by the errorHandler 
+middleware and formatted into this response shape. This way frontend code always knows what format errors will be in.
+
+
+4. HOW THIS SYSTEM COULD SCALE IN THE FUTURE
+=============================================
+
+Right now the system works fine for a single hotel or a few hotels, but if we got to thousands of hotels with millions of bookings, we'd hit some limits.
+
+Database side, the booking overlap check does a full table scan on every booking creation if not optimized. We should add indexes on (roomId, startDate, endDate, bookingStatus) so the database can quickly find conflicting bookings. Prisma would need raw migrations for this, or we could do it in SQL manually.
+
+Caching would help a lot. Room availability data doesn't change constantly. We could cache available room types for a hotel on specific dates in Redis. When a booking is made, we invalidate that cache for that hotel. This saves database queries on the busy search flow.
+
+Database transactions work great for small scale, but with high concurrent booking attempts, we could get transaction contention. We might move to optimistic locking: add a version field to rooms, and only allow a booking if the version matches when we check. This is more complex but avoids locks.
+
+The current setup would struggle with simultaneous high volume. We should add queue-based booking: instead of creating bookings synchronously, put booking requests in a queue (Redis queue or Bull), and workers process them. This decouples the API from the heavy booking logic and lets us scale workers independently.
+
+API rate limiting is basic right now (simple in-memory stores). At scale, we'd use Redis-backed rate limiting so limits persist across server instances.
+
+Authentication tokens are validated by decoding JWTs locally, which is fast. But at huge scale, we might use a proper OAuth2/OIDC provider like Auth0 or Keycloak, then our API becomes just a resource server.
+
+Separation into microservices could happen if different teams own different parts. Booking service could be separate from Hotel service. They'd communicate via events or APIs. But this adds operational complexity.
+
+Right now a single Node.js process handles everything. To scale horizontally, we'd put multiple instances behind a load balancer (Nginx or cloud load balancer). The database is the bottleneck though, so we'd need read replicas for analytics queries and write optimization.
+
+Logging and monitoring would become critical. We'd want structured logging to a service like ELK stack or DataDog, so we can search logs and see patterns. Database query slow logs to identify what needs optimization.
+
+For now though, the architecture is clean and it works. Premature optimization is the root of all evil. We scaled in the most natural way possible: separated concerns, used transactions to prevent data corruption, and made the code easy to change. When we hit scale limits, the code structure makes it easy to optimize the specific bottleneck without rewriting everything.

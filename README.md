@@ -53,6 +53,22 @@ npm install
 npm install express-rate-limit
 ```
 
+## 🚀 Quick Setup (Complete Setup in 3 Steps)
+
+```bash
+# 1. Setup environment
+# Create .env file with database and JWT secrets (see Environment Setup section below)
+
+# 2. Setup database
+npm run prisma:migrate   # Run migrations
+npm run prisma:seed      # Seed with sample data
+
+# 3. Start the server
+npm run dev
+```
+
+The backend will be available at `http://localhost:5000/api`
+
 ## ⚙️ Environment Setup
 
 Create a `.env` file in the root directory:
