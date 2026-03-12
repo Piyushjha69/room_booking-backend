@@ -11,17 +11,25 @@ export const getAdminStatsController = async (
   try {
     const prisma = req.db! as PrismaClient;
 
-    const [hotelsCount, roomsCount, bookingsCount, usersCount] = await Promise.all([
+    const [hotelsCount, roomsCount, bookingsCount, usersCount, activeBookingsCount] = await Promise.all([
       prisma.hotel.count(),
       prisma.room.count(),
       prisma.booking.count(),
       prisma.user.count(),
+      prisma.booking.count({
+        where: {
+          bookingStatus: { not: 'CANCELED' },
+          startDate: { lte: new Date() },
+          endDate: { gte: new Date() },
+        },
+      }),
     ]);
 
     sendSuccess(res, 200, 'Admin stats retrieved successfully', {
       hotels: hotelsCount,
       rooms: roomsCount,
       bookings: bookingsCount,
+      activeBookings: activeBookingsCount,
       users: usersCount,
     });
   } catch (error) {

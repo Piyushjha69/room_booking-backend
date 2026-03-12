@@ -1,4 +1,4 @@
-import { PrismaClient, Decimal } from "@prisma/client";
+import { PrismaClient, Decimal } from "../src/generated/prisma";
 
 const prisma = new PrismaClient();
 
@@ -123,6 +123,62 @@ async function main() {
       },
     ],
   });
+
+  // Create test users for bookings
+  const user1 = await prisma.user.create({
+    data: {
+      email: "user1@example.com",
+      name: "Test User 1",
+      password: "hashed_password", // In real app, this would be hashed
+      role: "USER",
+    },
+  });
+
+  const user2 = await prisma.user.create({
+    data: {
+      email: "user2@example.com",
+      name: "Test User 2",
+      password: "hashed_password",
+      role: "USER",
+    },
+  });
+
+  // Get the first room from hotel1 and hotel2 for bookings
+  const rooms = await prisma.room.findMany({
+    take: 2,
+  });
+
+  if (rooms.length >= 2) {
+    // Create active booking (currently ongoing)
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const nextWeek = new Date(today);
+    nextWeek.setDate(nextWeek.getDate() + 7);
+
+    await prisma.booking.create({
+      data: {
+        userId: user1.id,
+        roomId: rooms[0].id,
+        startDate: yesterday,
+        endDate: tomorrow,
+        bookingStatus: "BOOKED",
+      },
+    });
+
+    // Create another active booking
+    await prisma.booking.create({
+      data: {
+        userId: user2.id,
+        roomId: rooms[1].id,
+        startDate: yesterday,
+        endDate: nextWeek,
+        bookingStatus: "BOOKED",
+      },
+    });
+  }
 
   console.log("Database seed completed successfully!");
 }
