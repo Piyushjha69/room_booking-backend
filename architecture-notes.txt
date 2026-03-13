@@ -130,22 +130,33 @@ middleware and formatted into this response shape. This way frontend code always
 
 Right now the system works fine for a single hotel or a few hotels, but if we got to thousands of hotels with millions of bookings, we'd hit some limits.
 
-Database side, the booking overlap check does a full table scan on every booking creation if not optimized. We should add indexes on (roomId, startDate, endDate, bookingStatus) so the database can quickly find conflicting bookings. Prisma would need raw migrations for this, or we could do it in SQL manually.
+Database side, the booking overlap check does a full table scan on every booking creation if not optimized. We should add indexes on 
+(roomId, startDate, endDate, bookingStatus) so the database can quickly find conflicting bookings. Prisma would need raw migrations for this, or we could do it in 
+SQL manually.
 
-Caching would help a lot. Room availability data doesn't change constantly. We could cache available room types for a hotel on specific dates in Redis. When a booking is made, we invalidate that cache for that hotel. This saves database queries on the busy search flow.
+Caching would help a lot. Room availability data doesn't change constantly. We could cache available room types for a hotel on specific dates in Redis. When a booking
+ is made, we invalidate that cache for that hotel. This saves database queries on the busy search flow.
 
-Database transactions work great for small scale, but with high concurrent booking attempts, we could get transaction contention. We might move to optimistic locking: add a version field to rooms, and only allow a booking if the version matches when we check. This is more complex but avoids locks.
+Database transactions work great for small scale, but with high concurrent booking attempts, we could get transaction contention. We might move to optimistic 
+locking: add a version field to rooms, and only allow a booking if the version matches when we check. This is more complex but avoids locks.
 
-The current setup would struggle with simultaneous high volume. We should add queue-based booking: instead of creating bookings synchronously, put booking requests in a queue (Redis queue or Bull), and workers process them. This decouples the API from the heavy booking logic and lets us scale workers independently.
+The current setup would struggle with simultaneous high volume. We should add queue-based booking: instead of creating bookings synchronously, put booking requests
+ in a queue (Redis queue or Bull), and workers process them. This decouples the API from the heavy booking logic and lets us scale workers independently.
 
 API rate limiting is basic right now (simple in-memory stores). At scale, we'd use Redis-backed rate limiting so limits persist across server instances.
 
-Authentication tokens are validated by decoding JWTs locally, which is fast. But at huge scale, we might use a proper OAuth2/OIDC provider like Auth0 or Keycloak, then our API becomes just a resource server.
+Authentication tokens are validated by decoding JWTs locally, which is fast. But at huge scale, we might use a proper OAuth2/OIDC provider like Auth0 or Keycloak, 
+then our API becomes just a resource server.
 
-Separation into microservices could happen if different teams own different parts. Booking service could be separate from Hotel service. They'd communicate via events or APIs. But this adds operational complexity.
+Separation into microservices could happen if different teams own different parts. Booking service could be separate from Hotel service. They'd communicate via events 
+or APIs. But this adds operational complexity.
 
-Right now a single Node.js process handles everything. To scale horizontally, we'd put multiple instances behind a load balancer (Nginx or cloud load balancer). The database is the bottleneck though, so we'd need read replicas for analytics queries and write optimization.
+Right now a single Node.js process handles everything. To scale horizontally, we'd put multiple instances behind a load balancer (Nginx or cloud load balancer). 
+The database is the bottleneck though, so we'd need read replicas for analytics queries and write optimization.
 
-Logging and monitoring would become critical. We'd want structured logging to a service like ELK stack or DataDog, so we can search logs and see patterns. Database query slow logs to identify what needs optimization.
+Logging and monitoring would become critical. We'd want structured logging to a service like ELK stack or DataDog, so we can search logs and see patterns. 
+Database query slow logs to identify what needs optimization.
 
-For now though, the architecture is clean and it works. Premature optimization is the root of all evil. We scaled in the most natural way possible: separated concerns, used transactions to prevent data corruption, and made the code easy to change. When we hit scale limits, the code structure makes it easy to optimize the specific bottleneck without rewriting everything.
+For now though, the architecture is clean and it works. Premature optimization is the root of all evil. We scaled in the most natural way possible: separated concerns, 
+used transactions to prevent data corruption, and made the code easy to change. When we hit scale limits, the code structure makes it easy to optimize the specific 
+bottleneck without rewriting everything.
