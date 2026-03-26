@@ -11,6 +11,8 @@ import { roomRouter } from './routes/room.routes';
 import { bookingRouter } from './routes/booking.routes';
 import { hotelRouter } from './routes/hotel.routes';
 import { adminRouter } from './routes/admin.routes';
+import { healthRouter } from './routes/health.routes';
+import { requestTimeout } from './middleware/requestTimeout';
 
 dotenv.config();
 
@@ -23,29 +25,48 @@ try {
 
 const app: Express = express();
 const PORT = parseInt(process.env.PORT || '5000', 10);
-let prisma: any = null;
 
-const getPrismaClient = () => {
+// Trust proxy — CRITICAL when behind Nginx/Cloudflare/load balancer
+// Without this, all users share the same IP (127.0.0.1) and hit shared rate limits
+app.set('trust proxy', 1);
+
+let prisma: PrismaClient | null = null;
+
+const getPrismaClient = (): PrismaClient => {
   if (!prisma) {
-    prisma = new PrismaClient();
+    prisma = new PrismaClient({
+      log: process.env.NODE_ENV === 'development'
+        ? ['query', 'warn', 'error']
+        : ['warn', 'error'],
+    });
   }
   return prisma;
 };
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Payload size limits — prevent oversized request bodies from crashing the server
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(cors());
+
+// Request timeout — prevent hanging requests from exhausting connections
+app.use(requestTimeout(30000)); // 30 seconds
 
 // Apply request logging
 app.use(requestLogger);
 
-// Apply general API rate limiting
+// Health check — no rate limiting, no auth (for load balancers/monitoring)
+app.use(healthRouter);
+
+// Apply general API rate limiting to all /api routes
 app.use('/api', apiLimiter);
 
 // Apply stricter rate limiting to auth endpoints
+// NOTE: These are MORE SPECIFIC path matchers and run AFTER apiLimiter.
+// Since apiLimiter already counted the request, authLimiter/bookingLimiter
+// only add an additional stricter layer for their specific paths.
 app.use('/api/auth', authLimiter);
 
-// Apply booking rate limiting
+// Booking rate limiter — only counts POST requests (see rateLimiter.ts skip logic)
 app.use('/api/bookings', bookingLimiter);
 
 app.use((req: Request, res: Response, next: NextFunction) => {
@@ -63,7 +84,12 @@ app.use(roomRouter);
 app.use(bookingRouter);
 app.use(adminRouter);
 
-app.use((req, res) => {
+// Error handler MUST be registered BEFORE the 404 catch-all
+// Express 5 error handlers must have 4 parameters to be recognized
+app.use(errorHandler);
+
+// 404 catch-all — AFTER all routes and error handler
+app.use((req: Request, res: Response) => {
   res.status(404).json({
     success: false,
     statusCode: 404,
@@ -72,10 +98,13 @@ app.use((req, res) => {
   });
 });
 
-app.use(errorHandler);
-
 const start = async () => {
   try {
+    // Eagerly connect to DB to fail fast on startup
+    const client = getPrismaClient();
+    await client.$connect();
+    console.log('✅ Database connected');
+
     app.listen(PORT, '0.0.0.0', () => {
       console.log(`Server listening on http://0.0.0.0:${PORT}`);
     });
@@ -84,6 +113,16 @@ const start = async () => {
     process.exit(1);
   }
 };
+
+// Catch unhandled promise rejections — prevents silent crashes
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled Rejection:', reason);
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  process.exit(1);
+});
 
 process.on('SIGINT', async () => {
   console.log('SIGINT received, shutting down gracefully...');

@@ -7,11 +7,13 @@ export const adminMiddleware = (
   next: NextFunction
 ): void => {
   if (!req.user) {
-    throw new ForbiddenError('User not authenticated');
+    next(new ForbiddenError('User not authenticated'));
+    return;
   }
 
   if (req.user.role !== 'ADMIN') {
-    throw new ForbiddenError('Admin privileges required');
+    next(new ForbiddenError('Admin privileges required'));
+    return;
   }
 
   next();
